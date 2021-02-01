@@ -1,1 +1,423 @@
-test
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+
+
+</head>
+<script>
+  function generate_unittest2() {
+    let input = document.querySelector("#code_input");
+    let lines = input.value.split("\n");
+    const text = lines.join('').trim();
+    let objStack = detectWords(text);
+    detectVars(text);
+    let functionObjMap = generateFunctionObjMap(objStack.functionStack);
+    // console.log(objStack.functionStack);
+    let spies = generateSpies(functionObjMap, objStack.returnableFunction);
+    // console.log(spies);
+    let spyDisplay = writeSpies(spies);
+    // console.log(expects);
+    let expectsDisplay = writeExpects(functionObjMap);
+    const outputDisplay = `${spyDisplay}\n${expectsDisplay}`;
+    document.getElementById("output").innerHTML = outputDisplay;
+  }
+
+  const detectVars = (text) => {
+    const variables = [];
+    const functions = [];
+
+    let wordStack = [];
+    let word = "";
+    let scanVar = false;
+    for (let c of text) {
+      const newWord = word + c;
+      if (scanVar) {
+        if (c === '=') {
+          word = word.replace(/\s/g, '') //HimynameisFlavio
+          variables.push(word);
+          word = "";
+          scanVar = false;
+          continue;
+        }
+
+      } else {
+        if (c=== " ") {
+          if (isVar(word)) {
+            scanVar = true;
+            wordStack.push(newWord);
+            word = "";
+            continue;
+          }
+        }
+        if (c === " " || c === ';') {
+          wordStack.push(word);
+          word = "";
+          continue;
+        }
+      }
+      word = newWord;
+    }
+    console.log(variables);
+  }
+
+  const isVar = (word) => {
+    switch (word) {
+      case "var":
+      case "let":
+      case "const":
+        return true;
+    }
+    return false;
+  }
+
+  const detectWords = (text) => {
+    var wordStack = [];
+    let functionStack = [];
+    let enhanceFunctionStack = [];
+    let returnableFunction = new Set();
+    var word = "";
+    let parenthesesCount = 0;
+    var scanningFunction = false;
+    for (let c of text) {
+      let newWord = word + c;
+      if (scanningFunction) {
+        if (parenthesesCount === 0) {
+          scanningFunction = false;
+          let funcName = wordStack[wordStack.length - 1];
+          let funcParts = funcName.split('.');
+          let isNormalFunc = true;
+          let isHashMap = false;
+          if (funcParts.length > 1) {
+            const caller = funcParts[1];
+            if (isArray(caller)) isNormalFunc = false;
+            if (
+              caller === "add"
+              || caller === "set"
+            ) isHashMap = true;
+
+          }
+
+          if (isNormalFunc && !isHashMap) functionStack.push(word);
+          else enhanceFunctionStack.push(getBodyOfFunc(word));
+          word = "";
+          continue;
+        }
+
+        if (c === ")") {
+          parenthesesCount--;
+        } else if (c === "(") {
+          parenthesesCount++;
+        }
+
+
+      } else {
+        if (canIgnore(c)) {
+          continue;
+        }
+        if (c === " ") {
+          if (newWord.length === 1) {
+            word = "";
+            continue;
+          }
+          wordStack.push(word);
+          word = "";
+          continue;
+        }
+        if (c === "(") {
+          if (word.length > 2) {
+            scanningFunction = true;
+            parenthesesCount = 1;
+            if (wordStack[wordStack.length - 1] === "=") {
+              returnableFunction.add(word);
+            }
+            wordStack.push(word);
+          } else {
+            word = "";
+            continue;
+          }
+        }
+      }
+      word = newWord;
+    }
+
+    for (let enh of enhanceFunctionStack) {
+      const funcsInEnh = detectWords(enh.trim());
+      functionStack.push(...funcsInEnh.functionStack);
+    }
+    // console.log(wordStack);
+    // console.log(functionStack);
+    // console.log(returnableFunction);
+    // console.log(enhanceFunctionStack);
+    return {
+      functionStack: functionStack,
+      returnableFunction: returnableFunction
+    }
+  }
+
+  const canIgnore = (c) => {
+    switch (c) {
+      case '{':
+      case '}':
+      case ';':
+        return true;
+    }
+    return false;
+  }
+
+  const getBodyOfFunc = (funcString) => {
+    let startScanning = false;
+    let body = "";
+    let mustacheCount = 0;
+    for (let c of funcString) {
+      if (startScanning) {
+        if (mustacheCount === 0) {
+          startScanning = false;
+          continue;
+        }
+        else if (c === "}") mustacheCount--;
+        else if (c === "{") mustacheCount++;
+        body = body + c;
+
+      }
+      else {
+        if (c === "{") {
+          startScanning = true;
+          mustacheCount++;
+        }
+      }
+    }
+
+    return body.slice(0, body.length - 1);
+  }
+
+  const isArray = (caller) => {
+    const obj = []
+    let properties = new Set()
+    let currentObj = obj
+    do {
+      Object.getOwnPropertyNames(currentObj).map(item => properties.add(item))
+    } while ((currentObj = Object.getPrototypeOf(currentObj)))
+    const arrayMethods = [...properties.keys()].filter(item => typeof obj[item] === 'function')
+
+    return arrayMethods.find((method) => method === caller);
+
+  }
+
+  const generateSpies = (functionMapper, returnableFunctions) => {
+    let spies = new Set();
+    const functionStack = functionMapper.keys();
+    for (let functionString of functionStack) {
+      const functionFullName = functionString.split('(')[0];
+      const functionParts = functionFullName.split('.');
+      let tail = ";";
+      let className = "window";
+      let functionName = "";
+      if (functionParts.length > 2) continue; // not handling triple calls
+      else if (functionParts.length === 1) {
+        functionName = functionParts[0];
+      }
+      else {
+        className = functionParts[0];
+        functionName = functionParts[1];
+      }
+      if (returnableFunctions.has(functionFullName)) {
+        let functionCallArgs = functionMapper.get(functionFullName);
+        if (className === "Query") {
+          if (functionName === "select") {
+            // tail = ".and.callFake((table, col, where, sort) => {return []})"
+            tail = writeQueryCallBack(functionCallArgs);
+          } else if (functionName === "selectId") {
+            tail = writeQueryIdCallBack(functionCallArgs);
+          }
+        } 
+        else {
+          if (functionCallArgs.length === 1) {
+            tail = ".and.returnValue();"
+          } else {
+            tail = `.and.callFake(() => {return []})`
+          }
+        }
+      }
+      spies.add(`spyOn(${className}, '${functionName}')${tail}`)
+    }
+    return Array.from(spies);
+  }
+
+  const writeQueryCallBack = (functionCallArgs) => {
+    let str = ".and.callFake((table, col, where, sort) => {\n";
+    str = str + `\tswitch (table) {\n`;
+    for (let args of functionCallArgs) {
+      let table = args[0];
+      let check = `\t\tcase ${table}:\n\t\t\treturn [];\n`;
+      str = str + check
+    }
+    str = str + "\t\tdefault:\n\t\t\treturn [];\n";
+    str = str + "\t}\n);\n";
+    return str;
+  }
+
+  const writeQueryIdCallBack = (functionCallArgs) => {
+    let str = ".and.callFake((table, id) => {\n";
+    str = str + `\tswitch (table) {\n`;
+    for (let args of functionCallArgs) {
+      let table = args[0];
+      let check = `\t\tcase ${table}:\n\t\t\treturn {};\n`;
+      str = str + check
+    }
+    str = str + "\t\tdefault:\n\t\t\treturn {};\n";
+    str = str + "\t}\n);\n";
+    return str;
+  }
+
+  const writeSpies = (spies) => {
+    let spyString = "";
+    for (let spy of spies) {
+      spyString = spyString + spy + '\n';
+    }
+    return spyString;
+  }
+
+  const generateFunctionObjMap = (functionStack) => {
+    let expects = [];
+    for (let functionString of functionStack) {
+      const functionName = functionString.split('(')[0];
+      const functionArguments = functionString.slice(functionName.length + 1, functionString.length - 1);
+      let isCallback = false;
+      let args = [];
+      const stringQuoteTracker = new Map();
+      let word = "";
+      for (let c of functionArguments) {
+        let newWord = word + c;
+        if (isCallback) {
+          if (
+            stringQuoteTracker.get("\"") % 2 == 0
+            && stringQuoteTracker.get("'") % 2 == 0
+            && stringQuoteTracker.get("`") % 2 == 0
+          ) {
+            args.push(word);
+            word = "";
+            isCallback = false;
+            continue;
+          }
+          if (c === "\"" || c === "'" || c === "`") {
+            stringQuoteTracker.set(c, stringQuoteTracker.get(c) + 1);
+          }
+        } else {
+          if (c === " ") continue
+          if ((c === "\"" || c === "'" || c === "`") && word.length === 0) {
+            stringQuoteTracker.set("\"", 0);
+            stringQuoteTracker.set("'", 0);
+            stringQuoteTracker.set("`", 0);
+
+            stringQuoteTracker.set(c, 1);
+            isCallback = true;
+          }
+          if (c === "," && word.length > 1) {
+            args.push(word);
+            word = "";
+            continue;
+          }
+        }
+        word = newWord;
+      }
+      args.push(word);
+      expects.push({
+        functionName: functionName,
+        args: args
+      });
+    }
+    const functionExpectMapper = new Map();
+    for (let e of expects) {
+      if (functionExpectMapper.has(e.functionName)) {
+        if (e.args.length > 0) functionExpectMapper.get(e.functionName).push(e.args);
+      } else {
+        if (e.args.length > 0) functionExpectMapper.set(e.functionName, [e.args]);
+        else functionExpectMapper.set(e.functionName, []);
+      }
+    }
+    console.log("EXPECT MAPPER");
+    console.log(functionExpectMapper)
+    return functionExpectMapper;
+  }
+  /**
+   * 
+   **/
+  const writeExpects = (functionExpectMapper) => {
+    let display = ""
+    for (const [funcName, arg2dArray] of functionExpectMapper.entries()) {
+      let starting = `expect(${funcName}.calls.allArgs()).toEqual([\n`;
+      console.log(funcName);
+      console.log(arg2dArray);
+      if (arg2dArray.length === 0) {
+        starting = `expect(${funcName}.calls.allArgs()).toEqual([]);\n`;
+      } else {
+        let counter = 0;
+        for (let argArray of arg2dArray) {
+          const argStr = argArray.join(', ');
+          if (counter === arg2dArray.length - 1) {
+            starting = starting + "\t[" + argStr + "]\n]);\n";
+          } else {
+            starting = starting + "\t[" + argStr + "],\n";
+          }
+          counter++;
+        }
+      }
+      display = display + starting;
+    }
+    return display;
+  }
+</script>
+<style>
+  .container {
+    display: flex;
+    /* or inline-flex */
+    flex-direction: column;
+    align-content: center;
+    width: 75%;
+  }
+
+  .generate {
+    display: flex;
+    /* or inline-flex */
+    align-content: center;
+  }
+
+  pre {
+    tab-size: 2;
+  }
+</style>
+
+<body>
+  <div class="container">
+    <h1>Put your code here</h1>
+    <h4>Copy the code inside the function do not include the function declaration</h4>
+    <div>
+      <textarea id="code_input" name="generate_input" rows="50" cols="150">
+      </textarea>
+    </div>
+    <div>
+      <button class="generate" onclick="generate_unittest2()">Generate</button>
+      <!-- <p>Indention</p>
+      <input type="radio" id="male" name="gender" value="male" checked>
+      <label for="male">2 space</label><br>
+      <input type="radio" id="female" name="gender" value="female">
+      <label for="female">4 space (tabs)</label><br> -->
+    </div>
+    <div>
+      <h3>Generated Unit Test</h3>
+      <figure>
+        <!-- <code id="output"></code> -->
+      </figure>
+      <pre id="output">
+
+      <pre>
+    </div>
+  </div>
+
+</body>
+
+</html>
