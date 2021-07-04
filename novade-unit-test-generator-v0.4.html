@@ -156,6 +156,9 @@
 
           if (isNormalFunc && !isCallBack) functionStack.push(word);
           else enhanceFunctionStack.push(getBodyOfFunc(word));
+          let argText = _getFuncArgsText(word);
+          let innerArgObj =  detectWords(argText);
+          functionStack = [...functionStack, ...innerArgObj.functionStack];
           word = "";
           continue;
         }
@@ -205,6 +208,26 @@
     // console.log(functionStack);
     // console.log(returnableFunction);
     // console.log(enhanceFunctionStack);
+    function _getFuncArgsText(text) {
+      let args = [];
+      let startCapturing = false;
+      for (let c of text) {
+        if (startCapturing === false) {
+          if (c === "(") {
+            startCapturing = true;
+          }
+        } else {
+          args.push(c);
+          if (c == ")") {
+            args.push(";");
+          }
+        }
+
+      }
+      let argsText = args.join("");
+      return argsText.slice(0,-2);
+    
+    }
     return {
       functionStack: functionStack,
       returnableFunction: returnableFunction

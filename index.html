@@ -121,18 +121,11 @@
           let funcName = wordStack[wordStack.length - 1];
           let funcParts = funcName.split('.');
           let isNormalFunc = true;
-          let isHashMap = false;
           if (funcParts.length > 1) {
             const caller = funcParts[1];
             if (isArray(caller)) isNormalFunc = false;
-            if (
-              caller === "add"
-              || caller === "set"
-            ) isHashMap = true;
-
           }
-
-          if (isNormalFunc && !isHashMap) functionStack.push(word);
+          if (isNormalFunc) functionStack.push(word);
           else enhanceFunctionStack.push(getBodyOfFunc(word));
           word = "";
           continue;
@@ -183,6 +176,8 @@
     // console.log(functionStack);
     // console.log(returnableFunction);
     // console.log(enhanceFunctionStack);
+
+
     return {
       functionStack: functionStack,
       returnableFunction: returnableFunction
@@ -425,7 +420,10 @@
 <body>
   <div class="container">
     <h1>Put your code here</h1>
+    <h2>New version</h2>
+    <a href="novade-unit-test-generator-v0.4.html">Beta Version</a>
     <h4>Copy the code inside the function do not include the function declaration</h4>
+    
     <div>
       <textarea id="code_input" name="generate_input" rows="50" cols="150">
       </textarea>
