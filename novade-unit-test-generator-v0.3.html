@@ -22,16 +22,20 @@
     let spyDisplay = writeSpies(spies);
     // console.log(expects);
     // let expectsDisplay = writeExpects(functionObjMap);
-    let eArray = getExpectArray(objStack.functionStack);
-    console.log(JSON.stringify(eArray));
-    const outputDisplay = `${spyDisplay}\n${expectsDisplay}`;
+    let eArray = getExpectArray(functionObjMap);
+    let expectations = writeExpectArray(eArray);
+    console.log(JSON.stringify(eArray, null, '\t'));
+    let outputDisplay = "// -------------------- Spies --------------------\n"
+    outputDisplay += `${spyDisplay}\n${expectations}`;
+
+
     document.getElementById("output").innerHTML = outputDisplay;
   }
 
   function getExpectArray (functionObjMap) {
     let spies = new Set();
     let result = [];
-    const functionStack = functionMapper.keys();
+    const functionStack = functionObjMap.keys();
     for (let functionString of functionStack) {
       const functionFullName = functionString.split('(')[0];
       const functionParts = functionFullName.split('.');
@@ -39,22 +43,39 @@
       let className = "window";
       let functionName = "";
       if (functionParts.length > 2) continue; // not handling triple calls
-      else if (functionParts.length === 1) {
+      let name = "";
+    if (functionParts.length === 1) {
         functionName = functionParts[0];
+        name = functionParts[0];
       }
       else {
         className = functionParts[0];
         functionName = functionParts[1];
+        name = className + "." + functionName;
       }
-      spies.add(`spyOn(${className}, '${functionName}')${tail}`)
-      const obj = {
-        name : className,
-        spy : className+"."+functionName
-      }
+      spies.add(`spyOn(${className}.${functionName}, '${functionName}')${tail}`)
+      const obj = {name : `${className}.${functionName}`, spy : `${className}.${functionName}`}
       result.push(obj);
     }
     return result;
 
+  }
+
+  function writeExpectArray (result) {
+    let str = "const expectation = [ \n";
+    for (const r of result) {
+      str += "" + 
+      `     {
+        name : '${r.name}',
+        spy :  ${r.spy}
+      },\n`
+    }
+    str += "];\n"
+    str += "// -------------------- Call --------------------\n"
+    str += "/// PUT YOUR FUNCTION HERE \n";
+    str += "// -------------------- Tests --------------------\n"
+    str += "generateExpects(expectation);"
+    return str;
   }
 
   const detectVars = (text) => {
@@ -125,14 +146,15 @@
           if (funcParts.length > 1) {
             const caller = funcParts[1];
             if (isArray(caller)) isNormalFunc = false;
-            if (
-              caller === "add"
-              || caller === "set"
-            ) isHashMap = true;
+            // if (
+            //   caller === "add"
+            //   || caller === "set"
+            // ) isHashMap = true;
 
           }
+          const isCallBack = funcName[0]=== "\"";
 
-          if (isNormalFunc && !isHashMap) functionStack.push(word);
+          if (isNormalFunc && !isCallBack) functionStack.push(word);
           else enhanceFunctionStack.push(getBodyOfFunc(word));
           word = "";
           continue;
@@ -446,6 +468,34 @@
       <pre id="output">
 
       <pre>
+    </div>
+    <div>
+      <h4>Copy this code in to your unit test and let it genereate the Expectations</h4>
+<pre>
+
+
+  /**
+  * 
+  * @param {*} eTest 
+  */
+ function generateExpects (eTest) {
+   var str = "//------- Excepts -------- \n";
+   for (const spi of eTest) {
+     var param = JSON.stringify(spi.spy.calls.allArgs(), (key, value) => typeof value === "undefined" ? null : value);
+     var exceptStr = `expect(${spi.name}.calls.allArgs()).toEqual(
+         ${param}
+ );`;
+     str += exceptStr + "\n";
+     str = str.replace("null", "undefined");
+   }
+   str += "//------- End -------- \n";
+ 
+   console.log(str);
+ }
+ 
+
+</pre>
+
     </div>
   </div>
 
