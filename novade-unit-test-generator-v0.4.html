@@ -338,16 +338,17 @@
   // }
 
   const writeQueryIdCallBack = (functionCallArgs) => {
-    let str = ".and.callFake((table, id) => {\n";
-    str = str + `\tswitch (table) {\n`;
-    for (let args of functionCallArgs) {
-      let table = args[0];
-      let check = `\t\tcase ${table}:\n\t\t\treturn {};\n`;
-      str = str + check
-    }
-    str = str + "\t\tdefault:\n\t\t\treturn {};\n";
-    str = str + "\t}\n});\n";
-    return str;
+    // let str = ".and.callFake((table, id) => {\n";
+    // str = str + `\tswitch (table) {\n`;
+    // for (let args of functionCallArgs) {
+    //   let table = args[0];
+    //   let check = `\t\tcase ${table}:\n\t\t\treturn {};\n`;
+    //   str = str + check
+    // }
+    // str = str + "\t\tdefault:\n\t\t\treturn {};\n";
+    // str = str + "\t}\n});\n";
+
+    return ".and.returnValue();";
   }
 
   const writeSpies = (spies) => {
