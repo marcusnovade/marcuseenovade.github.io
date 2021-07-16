@@ -27,8 +27,8 @@
     var url_string = window.location.href;
     var url = new URL(url_string);
     var fileurl = url.searchParams.get("fileurl");
-    fileurl = fileurl + "&id=" +url.searchParams.get("id");
-    console.log(fileurl);
+    if (fileurl)
+      fileurl = fileurl + "&id=" +url.searchParams.get("id");
 
     init();
     function init() {
