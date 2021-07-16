@@ -11,7 +11,6 @@
   <div id="info">
     <h2>Novade</h2>
   </div>
-
   <script type="module">
 
     import * as THREE from 'https://threejs.org/build/three.module.js';
@@ -20,9 +19,16 @@
 
     let scene, camera, renderer;
     let geo = GetURLParameter("geo");
-    let fileurl = GetURLParameter("fileurl");
-    let id = GetURLNovadeParameterId();
-    let auth = GetURLParameterAuth();
+    // let fileurl = GetURLParameter("fileurl");
+    // let id = GetURLNovadeParameterId();
+    // let auth = GetURLParameterAuth();
+
+    // window.location.href;
+    var url_string = window.location.href;
+    var url = new URL(url_string);
+    var fileurl = url.searchParams.get("fileurl");
+    fileurl = fileurl + "&id=" +url.searchParams.get("id");
+    console.log(fileurl);
 
     init();
     function init() {
@@ -59,9 +65,7 @@
       const ifcLoader = new IFCLoader();
       ifcLoader.setWasmPath('https://threejs.org/examples/jsm/loaders/ifc/');
       if (!fileurl) fileurl = "https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/ifc/rac_advanced_sample_project.ifc";
-      else {
-        fileurl = fileurl + "=" + id  + "&auth=" + auth ;
-      }
+  
       ifcLoader.load(fileurl, function (model) {
 
         scene.add(model);
@@ -145,7 +149,7 @@
       var parts = sPageURL.split(
         "?id="
       )
-      if (parts.length > 0) {
+      if (parts.length > 1) {
         return parts[1].split("&")[0]
       }
 
