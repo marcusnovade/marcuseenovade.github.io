@@ -21,9 +21,10 @@
     let scene, camera, renderer;
     let geo = GetURLParameter("geo");
     let fileurl = GetURLParameter("fileurl");
+    let id = GetURLNovadeParameterId();
+    let auth = GetURLParameterAuth();
 
     init();
-
     function init() {
 
       //Scene
@@ -58,6 +59,9 @@
       const ifcLoader = new IFCLoader();
       ifcLoader.setWasmPath('https://threejs.org/examples/jsm/loaders/ifc/');
       if (!fileurl) fileurl = "https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/ifc/rac_advanced_sample_project.ifc";
+      else {
+        fileurl = fileurl + "=" + id  + "&auth=" + auth ;
+      }
       ifcLoader.load(fileurl, function (model) {
 
         scene.add(model);
@@ -133,6 +137,27 @@
         if (sParameterName[0] == sParam) {
           return sParameterName[1];
         }
+      }
+    }
+
+    function GetURLNovadeParameterId() {
+      var sPageURL = window.location.search.substring(1);
+      var parts = sPageURL.split(
+        "?id="
+      )
+      if (parts.length > 0) {
+        return parts[1].split("&")[0]
+      }
+
+    }
+
+    function GetURLParameterAuth (){
+      var sPageURL = window.location.search.substring(1);
+      var parts = sPageURL.split(
+        "&auth="
+      )
+      if (parts.length > 0 ) {
+        return parts[1];
       }
     }
   </script>
