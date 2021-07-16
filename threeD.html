@@ -19,8 +19,8 @@
     import { IFCLoader } from 'https://threejs.org/examples/jsm/loaders/IFCLoader.js';
 
     let scene, camera, renderer;
-    const geo = GetURLParameter("geo");
-    const fileurl = GetURLParameter("fileurl");
+    let geo = GetURLParameter("geo");
+    let fileurl = GetURLParameter("fileurl");
 
     init();
 
